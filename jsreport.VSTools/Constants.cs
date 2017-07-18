@@ -10,13 +10,13 @@ namespace jsreport.VSTools
     {
         public static string CSPROJ_UPDATE = @"
   <ItemGroup>
-    <None Update=""jsreport\**\*.*"">
+    <None Include=""jsreport\**\*.*"">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
 
   <ItemGroup>
-    <None Update=""jsreport\jsreport.Local"">
+    <None Update=""jsreport\jsreport.exe"">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
   </ItemGroup>
@@ -27,7 +27,13 @@ namespace jsreport.VSTools
         public static string JSREPORT_CONFIG = @"{ 
     ""connectionString"": { ""name"": ""fs"" }, 
     ""httpPort"": 5488, 
-    ""sample-template"": { ""createSamples"": true } 
+    ""sample-template"": { ""createSamples"": true } ,
+    ""base"": {
+      ""url"": ""${cwd}""
+    },
+    ""phantom"": {
+      ""allowLocalFilesAccess"":  true
+    }
 }";
     }
 }

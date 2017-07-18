@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -68,7 +69,7 @@ namespace jsreport.VSTools.Impl
         {
             get
             {
-                return Path.Combine(JsReportDirPath, "jsreport.Local");
+                return Path.Combine(JsReportDirPath, "jsreport.exe");
             }
         }
 
@@ -80,26 +81,27 @@ namespace jsreport.VSTools.Impl
             }
         }
 
-        private static string JsreportExeDistPath
+        private static string JsreportBinaryPath
         {
             get
             {
-                return Path.Combine(BinPath, "jsreport.Local.Dist.dll");
+                return Path.Combine(BinPath, "jsreport.Binary.dll");
             }
         }
 
         private static bool TryExtractExe()
         {
-            if (!File.Exists(JsreportExeDistPath))
+            if (!File.Exists(JsreportBinaryPath))
             {
-                MessageBox.Show("Missing jsreport.Local.Dist.dll. Install jsreport.Local nuget package or jsreport.Local.Dist package", "jsreport error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Missing jsreport.Binary.dll. Install jsreport.Local nuget package or jsreport.Binary package", "jsreport error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return false;                
             }
-
-            var exeStream = Assembly.Load(File.ReadAllBytes(JsreportExeDistPath)).GetManifestResourceStream("jsreport.Local.Dist.jsreport.Local");
+            
+            var zipStream = Assembly.Load(File.ReadAllBytes(JsreportBinaryPath)).GetManifestResourceStream("jsreport.Binary.jsreport.zip");
+            
             using (var fs = File.Create(ExePath))
             {
-                exeStream.CopyTo(fs);
+                new ZipArchive(zipStream).Entries.First().Open().CopyTo(fs);
             }
 
             return true;
@@ -109,7 +111,13 @@ namespace jsreport.VSTools.Impl
         {
             if (Directory.Exists(JsReportDirPath))
             {
-                MessageBox.Show("jsreport directory already exists in this project", "jsreport error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                // empty directory is fine
+                if (!Directory.EnumerateFileSystemEntries(JsReportDirPath).Any())
+                {
+                    return true;
+                }
+                    
+                MessageBox.Show("jsreport directory already exists in this project. Delete it first.", "jsreport error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return false;
             }
 
@@ -141,7 +149,7 @@ namespace jsreport.VSTools.Impl
             }                      
 
 
-            File.WriteAllText(Path.Combine(JsReportDirPath, ".gitignore"), "jsreport.Local");
+            File.WriteAllText(Path.Combine(JsReportDirPath, ".gitignore"), "jsreport.exe");
 
             var jsreportConfigPath = Path.Combine(JsReportDirPath, "dev.config.json");
             File.WriteAllText(jsreportConfigPath, Constants.JSREPORT_CONFIG);
@@ -155,8 +163,8 @@ namespace jsreport.VSTools.Impl
             }
 
             var csprojContent = File.ReadAllText(csprojPath);
-
-            if (!csprojContent.Contains("<Project Sdk=\"Microsoft.NET.Sdk\">"))
+            
+            if (!csprojContent.Contains("<Project Sdk=\"Microsoft.NET.Sdk\">") && !csprojContent.Contains("<Project Sdk=\"Microsoft.NET.Sdk.Web\">"))
             {
                 finalMessage = $"The csproj file likely doesn't support wildcard includes. We were not able to include jsreport/** files into the project and set copy to output always. You need to do it by hand.";
             } else
